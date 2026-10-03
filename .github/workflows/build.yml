@@ -1,0 +1,57 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install Cordova
+        run: npm install -g cordova
+
+      - name: Create Cordova App Shell
+        run: |
+          cordova create cordova_app com.worship.hymns "Songs Of Worship"
+          cd cordova_app
+          cordova platform add android@12.0.0
+
+      - name: Copy Web App Files
+        run: |
+          rm -rf cordova_app/www/*
+          cp -r index.html eagle.png manifest.json service-worker.js *.js *.css cordova_app/www/ 2>/dev/null || true
+          cp -r fonts themes cordova_app/www/ 2>/dev/null || true
+
+      - name: Configure App Icon
+        run: |
+          cd cordova_app
+          sed -i 's/<\/widget>/  <icon src="www\/eagle.png" \/>\n<\/widget>/' config.xml
+
+      - name: Build Android APK
+        run: |
+          cd cordova_app
+          cordova build android --no-telemetry
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Worship-Hymns-Offline-APK
+          path: cordova_app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          
